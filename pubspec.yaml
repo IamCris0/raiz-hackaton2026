@@ -1,0 +1,49 @@
+name: raiz_app
+description: "Raíz — detección temprana de riesgo de dislexia y disgrafía en escuelas rurales, offline-first."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI / iconografía
+  cupertino_icons: ^1.0.8
+
+  # Estado (simple y con poca curva de aprendizaje para trabajar en equipo)
+  provider: ^6.1.2
+
+  # Módulo 1 — OCR dual (offline con ML Kit, online con Vision API opcional)
+  google_mlkit_text_recognition: ^0.13.0
+  http: ^1.2.2
+
+  # Módulo 2 — captura de escritura (cámara) y, a futuro, inferencia on-device
+  camera: ^0.11.0+2
+  image_picker: ^1.1.2
+  tflite_flutter: ^0.11.0        # se activa cuando haya un modelo .tflite entrenado
+  image: ^4.2.0                  # preprocesamiento de la foto (recorte, escala de grises, etc.)
+
+  # Módulo 3 — historial local (dashboard docente)
+  sqflite: ^2.4.1
+  path: ^1.9.0
+  path_provider: ^2.1.5
+  fl_chart: ^0.69.0              # gráficos simples del dashboard
+
+  # Utilidades transversales
+  connectivity_plus: ^6.1.0      # decide modo online/offline automáticamente
+  intl: ^0.19.0                  # formateo de fechas para el historial
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/models/

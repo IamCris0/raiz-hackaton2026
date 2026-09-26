@@ -1,0 +1,22 @@
+/// Nivel de alerta que devuelve el Módulo 2 tras analizar una foto de
+/// escritura. Nunca es un diagnóstico — ver [AppConstants.avisoNoDiagnostico].
+enum NivelRiesgo { bajo, medio, alto }
+
+/// Resultado de analizar una muestra de escritura.
+///
+/// [senales] son los rasgos que la heurística (o, a futuro, el modelo
+/// TFLite) detectó — se muestran al docente para que entienda el "por qué"
+/// de la alerta, no solo el semáforo.
+class RiesgoResultado {
+  final NivelRiesgo nivel;
+  final double puntaje; // 0.0 - 1.0, entre más alto más señales de riesgo
+  final List<String> senales;
+  final DateTime fecha;
+
+  RiesgoResultado({
+    required this.nivel,
+    required this.puntaje,
+    required this.senales,
+    DateTime? fecha,
+  }) : fecha = fecha ?? DateTime.now();
+}
