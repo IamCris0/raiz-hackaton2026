@@ -21,7 +21,7 @@ class OcrService {
   /// (ver .gitignore — *.secrets.dart). Debe ser un método con la misma
   /// firma para poder alternar entre ambos sin tocar la UI:
   ///
-  /// Future<String> reconocerOnline(File imagen) async { ... }
+  /// `Future<String> reconocerOnline(File imagen) async { ... }`
 
   void dispose() => _recognizer.close();
 }
