@@ -9,9 +9,14 @@ class ConnectivityService extends ChangeNotifier {
   bool get online => _online;
 
   Future<void> init() async {
-    final result = await Connectivity().checkConnectivity();
-    _update(result);
-    Connectivity().onConnectivityChanged.listen(_update);
+    try {
+      final result = await Connectivity().checkConnectivity();
+      _update(result);
+      Connectivity().onConnectivityChanged.listen(_update);
+    } catch (_) {
+      // Sin plugin disponible (p. ej. en tests): se asume modo offline.
+      _online = false;
+    }
   }
 
   void _update(List<ConnectivityResult> result) {

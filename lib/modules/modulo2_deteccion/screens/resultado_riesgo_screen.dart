@@ -45,7 +45,7 @@ class ResultadoRiesgoScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: _color.withOpacity(0.12),
+                color: _color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: _color, width: 2),
               ),
@@ -54,15 +54,14 @@ class ResultadoRiesgoScreen extends StatelessWidget {
                   Icon(Icons.circle, color: _color, size: 36),
                   const SizedBox(height: 8),
                   Text(_etiqueta,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(color: _color, fontWeight: FontWeight.bold)),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: _color, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            Text('Señales detectadas', style: Theme.of(context).textTheme.titleMedium),
+            Text('Señales detectadas',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             ...resultado.senales.map((s) => ListTile(
                   leading: const Icon(Icons.chevron_right),

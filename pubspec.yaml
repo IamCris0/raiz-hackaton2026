@@ -10,31 +10,27 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # UI / iconografía
   cupertino_icons: ^1.0.8
-
-  # Estado (simple y con poca curva de aprendizaje para trabajar en equipo)
   provider: ^6.1.2
 
-  # Módulo 1 — OCR dual (offline con ML Kit, online con Vision API opcional)
-  google_mlkit_text_recognition: ^0.13.0
+  # Módulo 1 — OCR (offline con ML Kit)
+  google_mlkit_text_recognition: ^0.17.1
   http: ^1.2.2
 
-  # Módulo 2 — captura de escritura (cámara) y, a futuro, inferencia on-device
-  camera: ^0.11.0+2
+  # Módulo 2 — foto de la escritura + análisis de imagen
   image_picker: ^1.1.2
-  tflite_flutter: ^0.11.0        # se activa cuando haya un modelo .tflite entrenado
-  image: ^4.2.0                  # preprocesamiento de la foto (recorte, escala de grises, etc.)
+  image: ^4.2.0
+  # tflite_flutter se agrega cuando haya un modelo entrenado
 
-  # Módulo 3 — historial local (dashboard docente)
+  # Módulo 3 — historial local
   sqflite: ^2.4.1
   path: ^1.9.0
   path_provider: ^2.1.5
-  fl_chart: ^0.69.0              # gráficos simples del dashboard
+  fl_chart: ^0.69.0
 
-  # Utilidades transversales
-  connectivity_plus: ^6.1.0      # decide modo online/offline automáticamente
-  intl: ^0.19.0                  # formateo de fechas para el historial
+  # Utilidades
+  connectivity_plus: ^7.3.1
+  intl: ^0.19.0
 
 dev_dependencies:
   flutter_test:
