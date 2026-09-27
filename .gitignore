@@ -63,8 +63,11 @@ app.*.map.json
 /ios/Pods/
 /ios/.symlinks/
 
-# Modelo entrenado (pesa mucho, no va al repo hasta que exista uno real)
-assets/models/*.tflite
+# Entrenamiento del modelo: datos y dataset NO van al repo (el .tflite sí)
+model/datos/
+model/*.keras
+**/Gambo/
+*.rar
 
 # Variables de entorno / claves (Vision API, etc.)
 .env

@@ -41,9 +41,17 @@ class EscrituraInsuficienteException implements Exception {
   String toString() => mensaje;
 }
 
+typedef _Procesado = ({
+  img.Image imagen,
+  List<List<_Trazo>> renglones,
+  Int32List etiquetas,
+  int ancho,
+});
+
 class _Trazo {
+  final int id;
   int minX, maxX, minY, maxY, area = 0;
-  _Trazo(int x, int y)
+  _Trazo(this.id, int x, int y)
       : minX = x,
         maxX = x,
         minY = y,
@@ -64,9 +72,21 @@ class AnalizadorEscritura {
   static const _minRenglones = 2;
   static const _minTrazos = 20;
 
-  static MedidasEscritura medir(img.Image original) {
-    final renglones = _bloquePrincipal(_procesar(original).renglones);
+  static MedidasEscritura medir(img.Image original) => analizar(original).medidas;
 
+  /// Un solo recorrido de la foto: medidas de disgrafía + recortes de cada
+  /// letra suelta para el clasificador de letras invertidas.
+  static ({MedidasEscritura medidas, List<Float32List> letras}) analizar(img.Image original) {
+    final p = _procesar(original);
+    final renglones = _bloquePrincipal(p.renglones);
+    return (medidas: _medidas(renglones), letras: _recortes(p, renglones));
+  }
+
+  /// Solo los recortes (28x28, listos para el modelo). Útil para tests y
+  /// para calibrar.
+  static List<Float32List> recortesDeLetras(img.Image original) => analizar(original).letras;
+
+  static MedidasEscritura _medidas(List<List<_Trazo>> renglones) {
     final totalTrazos = renglones.fold<int>(0, (s, r) => s + r.length);
     if (renglones.length < _minRenglones || totalTrazos < _minTrazos) {
       throw const EscrituraInsuficienteException(
@@ -105,8 +125,95 @@ class AnalizadorEscritura {
     return salida;
   }
 
+  // ---------------------------------------------------------------------------
+  // Recortes para el clasificador de letras invertidas
+  // ---------------------------------------------------------------------------
+
+  /// Lado de la entrada del modelo. Debe coincidir con model/preproceso.py.
+  static const ladoLetra = 28;
+  static const _margenLetra = 0.12;
+
+  /// Toma cada trazo del bloque principal con forma de letra suelta y lo
+  /// normaliza igual que en el entrenamiento. En cursiva las letras van
+  /// unidas (un trazo = una palabra), por eso se filtran por proporción.
+  static List<Float32List> _recortes(_Procesado p, List<List<_Trazo>> renglones) {
+    final todos = [for (final r in renglones) ...r];
+    if (todos.isEmpty) return const [];
+    final altoTipico = _mediana(todos.map((t) => t.alto.toDouble()).toList());
+
+    final salida = <Float32List>[];
+    for (final t in todos) {
+      final proporcion = t.ancho / t.alto;
+      if (proporcion < 0.3 || proporcion > 1.6) continue;
+      if (t.alto < altoTipico * 0.6 || t.alto > altoTipico * 2.2) continue;
+
+      final mascara = Uint8List(t.ancho * t.alto);
+      for (var y = t.minY; y <= t.maxY; y++) {
+        for (var x = t.minX; x <= t.maxX; x++) {
+          if (p.etiquetas[y * p.ancho + x] == t.id) {
+            mascara[(y - t.minY) * t.ancho + (x - t.minX)] = 1;
+          }
+        }
+      }
+      salida.add(normalizarLetra(mascara, t.ancho, t.alto));
+    }
+    return salida;
+  }
+
+  /// Réplica exacta de `normalizar()` en model/preproceso.py para una
+  /// máscara binaria (1 = tinta) ya recortada a la letra:
+  /// cuadrado centrado con margen -> reducción por promedio de área -> [0,1].
+  static Float32List normalizarLetra(Uint8List mascara, int w, int h) {
+    final lado = max(w, h);
+    final m = (lado * _margenLetra).round();
+    final s = lado + 2 * m;
+    final y0 = (s - h) ~/ 2, x0 = (s - w) ~/ 2;
+
+    // Imagen integral del cuadrado (valores 0 o 255).
+    final integral = Float64List((s + 1) * (s + 1));
+    for (var y = 0; y < s; y++) {
+      var fila = 0.0;
+      for (var x = 0; x < s; x++) {
+        final yy = y - y0, xx = x - x0;
+        final v = (yy >= 0 && yy < h && xx >= 0 && xx < w && mascara[yy * w + xx] == 1) ? 255.0 : 0.0;
+        fila += v;
+        integral[(y + 1) * (s + 1) + x + 1] = integral[y * (s + 1) + x + 1] + fila;
+      }
+    }
+    double pixel(int y, int x) {
+      final yy = y - y0, xx = x - x0;
+      return (yy >= 0 && yy < h && xx >= 0 && xx < w && mascara[yy * w + xx] == 1) ? 255.0 : 0.0;
+    }
+
+    const lado2 = ladoLetra;
+    final f = s / lado2;
+    final a = List<int>.generate(lado2, (i) => min(max((i * f - 0.5 + 1e-9).ceil(), 0), s));
+    final b = List<int>.generate(lado2, (i) => min(max(((i + 1) * f - 0.5 + 1e-9).ceil(), 0), s));
+    final nn = List<int>.generate(lado2, (i) => min(((i + 0.5) * f).floor(), s - 1));
+
+    final out = Float32List(lado2 * lado2);
+    for (var oy = 0; oy < lado2; oy++) {
+      for (var ox = 0; ox < lado2; ox++) {
+        final ya = a[oy], yb = b[oy], xa = a[ox], xb = b[ox];
+        final n = (yb - ya) * (xb - xa);
+        final double v;
+        if (n > 0) {
+          final suma = integral[yb * (s + 1) + xb] -
+              integral[ya * (s + 1) + xb] -
+              integral[yb * (s + 1) + xa] +
+              integral[ya * (s + 1) + xa];
+          v = suma / n;
+        } else {
+          v = pixel(nn[oy], nn[ox]);
+        }
+        out[oy * lado2 + ox] = v / 255.0;
+      }
+    }
+    return out;
+  }
+
   /// Renglones con aspecto de texto (todos, no solo el bloque principal).
-  static ({img.Image imagen, List<List<_Trazo>> renglones}) _procesar(img.Image original) {
+  static _Procesado _procesar(img.Image original) {
     var imagen = img.bakeOrientation(original);
     if (imagen.width > _anchoTrabajo) {
       imagen = img.copyResize(imagen, width: _anchoTrabajo);
@@ -119,13 +226,15 @@ class AnalizadorEscritura {
     // Segunda pasada: ya conocida la altura típica de letra, se borran
     // también los pedazos de renglón impreso pegados a las letras (más
     // largos que una letra y sin tinta arriba ni abajo).
-    final previos = _filtrarTrazos(_componentes(tinta, w, h), w, h);
+    final etiquetas = Int32List(w * h);
+    final previos = _filtrarTrazos(_componentes(tinta, w, h, etiquetas), w, h);
     if (previos.isNotEmpty) {
       final altoTipico = _mediana(previos.map((t) => t.alto.toDouble()).toList());
       _borrarLineasLargas(tinta, w, h, largoMinimo: max(12, (altoTipico * 1.3).round()), verticales: false);
     }
-    final trazos = _filtrarTrazos(_componentes(tinta, w, h), w, h);
-    return (imagen: imagen, renglones: _agruparRenglones(trazos, w));
+    etiquetas.fillRange(0, etiquetas.length, 0);
+    final trazos = _filtrarTrazos(_componentes(tinta, w, h, etiquetas), w, h);
+    return (imagen: imagen, renglones: _agruparRenglones(trazos, w), etiquetas: etiquetas, ancho: w);
   }
 
   // ---------------------------------------------------------------------------
@@ -237,14 +346,17 @@ class AnalizadorEscritura {
     }
   }
 
-  static List<_Trazo> _componentes(Uint8List tinta, int w, int h) {
+  /// Componentes conexos. [etiquetas] recibe, por píxel, el id del trazo
+  /// (0 = fondo) para poder recortar una letra sin tinta de sus vecinas.
+  static List<_Trazo> _componentes(Uint8List tinta, int w, int h, Int32List etiquetas) {
     final visitado = Uint8List(w * h);
     final pila = Int32List(w * h);
     final trazos = <_Trazo>[];
+    var siguienteId = 0;
 
     for (var inicio = 0; inicio < w * h; inicio++) {
       if (tinta[inicio] == 0 || visitado[inicio] == 1) continue;
-      final t = _Trazo(inicio % w, inicio ~/ w);
+      final t = _Trazo(++siguienteId, inicio % w, inicio ~/ w);
       var tope = 0;
       pila[tope++] = inicio;
       visitado[inicio] = 1;
@@ -253,6 +365,7 @@ class AnalizadorEscritura {
         final i = pila[--tope];
         final x = i % w, y = i ~/ w;
         t.area++;
+        etiquetas[i] = t.id;
         if (x < t.minX) t.minX = x;
         if (x > t.maxX) t.maxX = x;
         if (y < t.minY) t.minY = y;
