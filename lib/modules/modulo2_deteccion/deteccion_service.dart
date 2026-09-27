@@ -33,13 +33,20 @@ class DeteccionService {
 /// Rangos de calibración por indicador: por debajo de `normal` no hay señal,
 /// en `alto` o más la señal es máxima.
 ///
-/// PROVISIONAL: `normal` sale de dos muestras reales con buena letra (un
-/// dictado infantil a lápiz y una hoja adulta con esfero) y `alto` de
-/// muestras sintéticas irregulares. Recalibrar con las 10–20 fotos reales
-/// anonimizadas (usar [AnalizadorEscritura.diagnostico] para revisar).
-const _tamano = (normal: 0.32, alto: 0.60);
-const _espaciado = (normal: 0.40, alto: 0.90);
-const _lineaBase = (normal: 0.18, alto: 0.50);
+/// Calibrado con 242 escritos de niños de primaria del "Potential Dysgraphia
+/// Handwriting Dataset" (Mendeley, ver tool/calibrar_mendeley.dart):
+/// `normal` = mediana de los niños de bajo riesgo, `alto` = su percentil 95.
+/// Pesos y corte elegidos con validación cruzada: acierto ~68 %, detecta
+/// ~56 % de los casos posibles con ~23 % de falsas alarmas (reproducible con
+/// el script; cambia un poco al tocar el analizador). La línea base es la
+/// señal que más separa (AUC 0.76); el tamaño no aportó en ese dataset de un
+/// solo renglón. Falta validar con dictados reales de niños ecuatorianos.
+const _tamano = (normal: 0.227, alto: 0.401);
+const _espaciado = (normal: 0.258, alto: 0.622);
+const _lineaBase = (normal: 0.120, alto: 0.221);
+const _pesos = (tamano: 0.0, espaciado: 0.1, lineaBase: 0.9);
+const _corteMedio = 0.25;
+const _corteAlto = 0.65;
 
 RiesgoResultado evaluar(Uint8List bytes) {
   final imagen = img.decodeImage(bytes);
@@ -57,10 +64,11 @@ RiesgoResultado interpretar(MedidasEscritura m) {
   final espaciado = escalar(m.espaciado, _espaciado);
   final lineaBase = escalar(m.lineaBase, _lineaBase);
 
-  final puntaje = (0.4 * tamano + 0.3 * espaciado + 0.3 * lineaBase).clamp(0.0, 1.0);
-  final nivel = puntaje < 0.35
+  final puntaje = (_pesos.tamano * tamano + _pesos.espaciado * espaciado + _pesos.lineaBase * lineaBase)
+      .clamp(0.0, 1.0);
+  final nivel = puntaje < _corteMedio
       ? NivelRiesgo.bajo
-      : puntaje < 0.65
+      : puntaje < _corteAlto
           ? NivelRiesgo.medio
           : NivelRiesgo.alto;
 

@@ -64,11 +64,17 @@ class AnalizadorEscritura {
   static const _minRenglones = 2;
   static const _minTrazos = 20;
 
-  static MedidasEscritura medir(img.Image original) {
+  /// [minRenglones] y [minTrazos] solo se bajan para calibrar con datasets
+  /// de un renglón (ver tool/calibrar_mendeley.dart).
+  static MedidasEscritura medir(
+    img.Image original, {
+    int minRenglones = _minRenglones,
+    int minTrazos = _minTrazos,
+  }) {
     final renglones = _bloquePrincipal(_procesar(original).renglones);
 
     final totalTrazos = renglones.fold<int>(0, (s, r) => s + r.length);
-    if (renglones.length < _minRenglones || totalTrazos < _minTrazos) {
+    if (renglones.length < minRenglones || totalTrazos < minTrazos) {
       throw const EscrituraInsuficienteException(
         'No se encontró suficiente escritura en la foto. Acércate a la hoja, '
         'con buena luz, y asegúrate de que se vean al menos 3 renglones.',
@@ -111,6 +117,7 @@ class AnalizadorEscritura {
     if (imagen.width > _anchoTrabajo) {
       imagen = img.copyResize(imagen, width: _anchoTrabajo);
     }
+    imagen = _enderezar(imagen);
     final w = imagen.width, h = imagen.height;
 
     final tinta = _binarizar(imagen);
@@ -131,6 +138,72 @@ class AnalizadorEscritura {
   // ---------------------------------------------------------------------------
   // Preprocesamiento
   // ---------------------------------------------------------------------------
+
+  /// Una foto inclinada hace que los renglones del cuaderno no se borren y
+  /// que las letras parezcan salirse de su línea. Se busca el ángulo en que
+  /// la tinta (escritura y renglones impresos) forma bandas horizontales más
+  /// marcadas y se gira la foto para dejarlas rectas.
+  static img.Image _enderezar(img.Image imagen) {
+    final angulo = anguloInclinacion(imagen);
+    if (angulo.abs() < 0.5) return imagen;
+
+    // Las esquinas que aparecen al girar se pintan de blanco (papel), no de
+    // negro, para que no parezcan tinta.
+    final girada = img.copyRotate(imagen.convert(numChannels: 4, alpha: imagen.maxChannelValue), angle: -angulo);
+    final hoja = img.Image(width: girada.width, height: girada.height);
+    img.fill(hoja, color: img.ColorRgb8(255, 255, 255));
+    return img.compositeImage(hoja, girada);
+  }
+
+  /// Inclinación de los renglones en grados (positivo = bajan hacia la
+  /// derecha). Solo busca entre -10° y 10°: más que eso es una foto mal
+  /// tomada, no una inclinación leve.
+  static double anguloInclinacion(img.Image imagen) {
+    final w = imagen.width, h = imagen.height;
+    final tinta = _binarizar(imagen);
+    final xs = <int>[], ys = <int>[];
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        if (tinta[y * w + x] == 1) {
+          xs.add(x);
+          ys.add(y);
+        }
+      }
+    }
+    if (xs.length < 200) return 0;
+
+    double nitidez(double grados) {
+      final t = tan(grados * pi / 180);
+      final margen = (w * 0.2).ceil();
+      final bandas = Float64List(h + 2 * margen);
+      for (var i = 0; i < xs.length; i++) {
+        final b = (ys[i] - (xs[i] - w / 2) * t).round() + margen;
+        if (b >= 0 && b < bandas.length) bandas[b]++;
+      }
+      var s = 0.0;
+      for (final v in bandas) {
+        s += v * v;
+      }
+      return s;
+    }
+
+    var mejor = 0.0, mejorNitidez = nitidez(0);
+    for (var g = -10.0; g <= 10.0; g += 0.5) {
+      final n = nitidez(g);
+      if (n > mejorNitidez) {
+        mejorNitidez = n;
+        mejor = g;
+      }
+    }
+    for (var g = mejor - 0.4; g <= mejor + 0.4; g += 0.1) {
+      final n = nitidez(g);
+      if (n > mejorNitidez) {
+        mejorNitidez = n;
+        mejor = g;
+      }
+    }
+    return mejor;
+  }
 
   /// Umbral adaptativo (media local): resiste sombras y luz desigual de una
   /// foto con celular. Descarta colores saturados no azules (margen rojo,
@@ -353,7 +426,39 @@ class AnalizadorEscritura {
       }
       if ((picos[k] - t.cy).abs() <= interlinea * 0.6) renglones[k].add(t);
     }
-    return renglones.where((r) => _pareceTexto(r, w)).toList();
+    // Primero se decide qué es texto (con el renglón completo) y después se
+    // recortan las puntas: al revés, una fila de dibujos recortada podría
+    // pasar por texto.
+    return renglones.where((r) => _pareceTexto(r, w)).map(_sinSueltosEnLosExtremos).toList();
+  }
+
+  /// Quita de las puntas del renglón los trazos separados del texto por un
+  /// hueco mucho mayor que un espacio entre palabras: agujeros de la hoja,
+  /// borde de la mesa o del papel. Un solo trazo así inflaría el espaciado.
+  static List<_Trazo> _sinSueltosEnLosExtremos(List<_Trazo> renglon) {
+    if (renglon.length < 5) return renglon;
+    final alto = _mediana(renglon.map((t) => t.alto.toDouble()).toList());
+    final r = [...renglon]..sort((a, b) => a.minX.compareTo(b.minX));
+
+    // Grupos separados por huecos de más de 3 alturas de letra; se descartan
+    // los grupos de las puntas que tengan pocos trazos (máx. 20 % del total).
+    final grupos = <List<_Trazo>>[
+      [r.first],
+    ];
+    var derecha = r.first.maxX;
+    for (final t in r.skip(1)) {
+      if (t.minX - derecha > alto * 3) grupos.add([]);
+      grupos.last.add(t);
+      derecha = max(derecha, t.maxX);
+    }
+    final maxSuelto = max(1, (r.length * 0.2).floor());
+    while (grupos.length > 1 && grupos.first.length <= maxSuelto) {
+      grupos.removeAt(0);
+    }
+    while (grupos.length > 1 && grupos.last.length <= maxSuelto) {
+      grupos.removeLast();
+    }
+    return [for (final g in grupos) ...g];
   }
 
   /// Los renglones de un dictado están a distancia regular. Un salto grande
