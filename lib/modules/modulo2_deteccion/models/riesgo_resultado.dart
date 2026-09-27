@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// Nivel de alerta que devuelve el Módulo 2 tras analizar una foto de
 /// escritura. Nunca es un diagnóstico — ver [AppConstants.avisoNoDiagnostico].
 enum NivelRiesgo { bajo, medio, alto }
@@ -13,10 +15,15 @@ class RiesgoResultado {
   final List<String> senales;
   final DateTime fecha;
 
+  /// JPEG de la zona escrita con la línea de cada renglón y las letras que
+  /// la siguen (verde) o se salen de ella (rojo). Null si no se generó.
+  final Uint8List? vista;
+
   RiesgoResultado({
     required this.nivel,
     required this.puntaje,
     required this.senales,
+    this.vista,
     DateTime? fecha,
   }) : fecha = fecha ?? DateTime.now();
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -87,6 +88,12 @@ class _ResultadoRiesgoScreenState extends State<ResultadoRiesgoScreen> {
           ),
           const SizedBox(height: 22),
 
+          if (r.vista != null) ...[
+            const TituloSeccion('Lo que analizó Raíz'),
+            _VistaAnalisis(bytes: r.vista!),
+            const SizedBox(height: 22),
+          ],
+
           const TituloSeccion('Señales detectadas'),
           RaizCard(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -160,6 +167,106 @@ class _ResultadoRiesgoScreenState extends State<ResultadoRiesgoScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// La foto con la línea de cada renglón y las letras marcadas, para que el
+/// docente vea en qué se basó la alerta. Se toca para ampliarla.
+class _VistaAnalisis extends StatelessWidget {
+  final Uint8List bytes;
+  const _VistaAnalisis({required this.bytes});
+
+  void _ampliar(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(maxScale: 6, child: Center(child: Image.memory(bytes))),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: SafeArea(
+                child: IconButton.filled(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RaizCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => _ampliar(context),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                children: [
+                  Image.memory(bytes, width: double.infinity, fit: BoxFit.fitWidth),
+                  Positioned(
+                    right: 8,
+                    bottom: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
+                      child: const Icon(Icons.zoom_in_rounded, color: Colors.white, size: 20),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const _Leyenda(color: Color(0xFF1E6EDC), texto: 'Línea del renglón que detectó Raíz', linea: true),
+          const _Leyenda(color: Color(0xFF28A05A), texto: 'Letra que sigue el renglón'),
+          const _Leyenda(color: Color(0xFFDC2828), texto: 'Letra que flota o se hunde'),
+          const SizedBox(height: 6),
+          Text('Toca la imagen para ampliarla.', style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+}
+
+class _Leyenda extends StatelessWidget {
+  final Color color;
+  final String texto;
+  final bool linea;
+  const _Leyenda({required this.color, required this.texto, this.linea = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Container(
+            width: 18,
+            height: linea ? 3 : 14,
+            decoration: BoxDecoration(
+              color: linea ? color : null,
+              border: linea ? null : Border.all(color: color, width: 2),
+              borderRadius: BorderRadius.circular(linea ? 2 : 3),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(texto, style: Theme.of(context).textTheme.bodyMedium)),
+        ],
       ),
     );
   }
