@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/raiz_widgets.dart';
+import '../analizador_escritura.dart';
 import '../deteccion_service.dart';
 import 'resultado_riesgo_screen.dart';
 
@@ -64,6 +65,19 @@ class _CapturaEscrituraScreenState extends State<CapturaEscrituraScreen> {
             grado: _grado,
             foto: _foto,
           ),
+        ),
+      );
+    } on EscrituraInsuficienteException catch (e) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(Icons.photo_camera_back_outlined, color: AppTheme.ambar, size: 36),
+          title: const Text('Necesitamos otra foto'),
+          content: Text(e.mensaje),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Entendido')),
+          ],
         ),
       );
     } catch (e) {
