@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/reporte.dart';
 import '../../../shared/widgets/raiz_widgets.dart';
 import '../db/app_database.dart';
 import '../models/registro_estudiante.dart';
@@ -82,6 +83,30 @@ class _EstudianteDetalleScreenState extends State<EstudianteDetalleScreen> {
                 const Spacer(),
                 Text(DateFormat('dd/MM/yyyy · HH:mm').format(r.fecha), style: t.bodySmall),
               ],
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.share_rounded, size: 18),
+                label: const Text('Compartir reporte'),
+                onPressed: () async {
+                  if (!await confirmarCompartir(ctx)) return;
+                  await compartirReporte(
+                    nombre: r.nombreEstudiante,
+                    vistaRuta: r.vistaRuta,
+                    texto: textoReporte(
+                      nombre: r.nombreEstudiante,
+                      grado: r.grado,
+                      fecha: r.fecha,
+                      nivel: r.nivel,
+                      puntaje: r.puntaje,
+                      senales: r.senales,
+                      observaciones: r.observaciones,
+                    ),
+                  );
+                },
+              ),
             ),
             if (vista != null && vista.existsSync()) ...[
               const SizedBox(height: 16),
