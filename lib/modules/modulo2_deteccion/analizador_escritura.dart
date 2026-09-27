@@ -212,26 +212,51 @@ class AnalizadorEscritura {
     return out;
   }
 
-  /// Renglones con aspecto de texto (todos, no solo el bloque principal).
-  static _Procesado _procesar(img.Image original) {
-    var imagen = img.bakeOrientation(original);
-    if (imagen.width > _anchoTrabajo) {
-      imagen = img.copyResize(imagen, width: _anchoTrabajo);
-    }
+  /// La hoja solo con la escritura: tinta negra sobre blanco, sin renglones
+  /// del cuaderno, margen, colores ni sombras. La usa el OCR (Módulo 1) como
+  /// segunda lectura, porque a veces lee mejor la versión limpia.
+  static img.Image imagenLimpia(img.Image original, {int ancho = 1400}) {
+    final imagen = _aTamanoDeTrabajo(original, ancho);
     final w = imagen.width, h = imagen.height;
+    final tinta = _tintaLimpia(imagen, Int32List(w * h));
+    final salida = img.Image(width: w, height: h, numChannels: 1);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final v = tinta[y * w + x] == 1 ? 0 : 255;
+        salida.setPixelRgb(x, y, v, v, v);
+      }
+    }
+    return salida;
+  }
 
+  static img.Image _aTamanoDeTrabajo(img.Image original, int ancho) {
+    final imagen = img.bakeOrientation(original);
+    return imagen.width > ancho ? img.copyResize(imagen, width: ancho) : imagen;
+  }
+
+  /// Binariza y borra renglones impresos y margen (dos pasadas).
+  static Uint8List _tintaLimpia(img.Image imagen, Int32List etiquetas) {
+    final w = imagen.width, h = imagen.height;
     final tinta = _binarizar(imagen);
     _borrarLineasLargas(tinta, w, h);
 
     // Segunda pasada: ya conocida la altura típica de letra, se borran
     // también los pedazos de renglón impreso pegados a las letras (más
     // largos que una letra y sin tinta arriba ni abajo).
-    final etiquetas = Int32List(w * h);
     final previos = _filtrarTrazos(_componentes(tinta, w, h, etiquetas), w, h);
     if (previos.isNotEmpty) {
       final altoTipico = _mediana(previos.map((t) => t.alto.toDouble()).toList());
       _borrarLineasLargas(tinta, w, h, largoMinimo: max(12, (altoTipico * 1.3).round()), verticales: false);
     }
+    return tinta;
+  }
+
+  /// Renglones con aspecto de texto (todos, no solo el bloque principal).
+  static _Procesado _procesar(img.Image original) {
+    final imagen = _aTamanoDeTrabajo(original, _anchoTrabajo);
+    final w = imagen.width, h = imagen.height;
+    final etiquetas = Int32List(w * h);
+    final tinta = _tintaLimpia(imagen, etiquetas);
     etiquetas.fillRange(0, etiquetas.length, 0);
     final trazos = _filtrarTrazos(_componentes(tinta, w, h, etiquetas), w, h);
     return (imagen: imagen, renglones: _agruparRenglones(trazos, w), etiquetas: etiquetas, ancho: w);
