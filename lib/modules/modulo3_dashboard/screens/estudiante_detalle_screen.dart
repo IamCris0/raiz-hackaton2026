@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -35,6 +37,74 @@ class _EstudianteDetalleScreenState extends State<EstudianteDetalleScreen> {
     if (ok != true || r.id == null) return;
     await AppDatabase.eliminar(r.id!);
     if (mounted) setState(() => _datos = AppDatabase.historialDe(widget.nombre));
+  }
+
+  void _verEvaluacion(RegistroEstudiante r) {
+    final t = Theme.of(context).textTheme;
+    final vista = r.vistaRuta == null ? null : File(r.vistaRuta!);
+    Widget lista(String titulo, List<String> items, IconData icono, Color color) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
+            Text(titulo, style: t.titleMedium),
+            for (final s in items)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(icono, size: 16, color: color),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(s, style: t.bodyMedium)),
+                  ],
+                ),
+              ),
+          ],
+        );
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        builder: (ctx, scroll) => ListView(
+          controller: scroll,
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+          children: [
+            Row(
+              children: [
+                InsigniaRiesgo(nivel: r.nivel),
+                const SizedBox(width: 10),
+                Text('índice ${(r.puntaje * 100).round()}', style: t.titleMedium),
+                const Spacer(),
+                Text(DateFormat('dd/MM/yyyy · HH:mm').format(r.fecha), style: t.bodySmall),
+              ],
+            ),
+            if (vista != null && vista.existsSync()) ...[
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: InteractiveViewer(maxScale: 5, child: Image.file(vista)),
+              ),
+              const SizedBox(height: 6),
+              Text('Azul: renglón · Verde: sigue el renglón · Rojo: flota o se hunde. Pellizca para ampliar.',
+                  style: t.bodySmall),
+            ],
+            if (r.senales.isNotEmpty) lista('Señales detectadas', r.senales, Icons.fiber_manual_record, r.nivel.color),
+            if (r.observaciones.isNotEmpty)
+              lista('Observaciones', r.observaciones, Icons.info_outline_rounded, AppTheme.tintaSuave),
+            if (r.senales.isEmpty && vista == null) ...[
+              const SizedBox(height: 16),
+              Text('Esta evaluación se guardó con una versión anterior de Raíz y no tiene el detalle.',
+                  style: t.bodyMedium),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -105,6 +175,7 @@ class _EstudianteDetalleScreenState extends State<EstudianteDetalleScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: RaizCard(
+                    onTap: () => _verEvaluacion(r),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     child: Row(
                       children: [
@@ -118,6 +189,12 @@ class _EstudianteDetalleScreenState extends State<EstudianteDetalleScreen> {
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 14.5)),
                               Text('${r.nivel.etiqueta} · índice ${(r.puntaje * 100).round()}',
                                   style: Theme.of(context).textTheme.bodySmall),
+                              if (r.senales.isNotEmpty || r.vistaRuta != null)
+                                Text('Toca para ver el detalle',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(color: AppTheme.bosque, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),

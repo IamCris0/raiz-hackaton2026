@@ -16,5 +16,5 @@ class AppConstants {
   ];
 
   static const String dbName = 'raiz_local.db';
-  static const int dbVersion = 2; // v2: columna "grado"
+  static const int dbVersion = 3; // v2: columna "grado" · v3: señales, observaciones y vista
 }

@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -26,21 +29,39 @@ class AppDatabase {
           grado TEXT,
           nivel TEXT NOT NULL,
           puntaje REAL NOT NULL,
-          fecha TEXT NOT NULL
+          fecha TEXT NOT NULL,
+          senales TEXT,
+          observaciones TEXT,
+          vista_ruta TEXT
         )
       '''),
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute('ALTER TABLE registros ADD COLUMN grado TEXT');
         }
+        if (oldVersion < 3) {
+          await db.execute('ALTER TABLE registros ADD COLUMN senales TEXT');
+          await db.execute('ALTER TABLE registros ADD COLUMN observaciones TEXT');
+          await db.execute('ALTER TABLE registros ADD COLUMN vista_ruta TEXT');
+        }
       },
     );
     return _db!;
   }
 
-  static Future<int> guardar(RegistroEstudiante registro) async {
+  /// La imagen analizada se guarda como archivo en la carpeta privada de la
+  /// app (no en SQLite, para que la base no crezca) y nunca sale del celular.
+  static Future<int> guardar(RegistroEstudiante registro, {Uint8List? vista}) async {
     final db = await _open();
-    return db.insert('registros', registro.toMap());
+    String? ruta;
+    if (vista != null) {
+      final dir = Directory(p.join((await getApplicationDocumentsDirectory()).path, 'evaluaciones'));
+      await dir.create(recursive: true);
+      ruta = p.join(dir.path, '${registro.fecha.millisecondsSinceEpoch}.jpg');
+      await File(ruta).writeAsBytes(vista, flush: true);
+    }
+    final fila = registro.toMap()..['vista_ruta'] = ruta ?? registro.vistaRuta;
+    return db.insert('registros', fila);
   }
 
   static Future<List<RegistroEstudiante>> historialDe(String nombreEstudiante) async {
@@ -62,7 +83,17 @@ class AppDatabase {
 
   static Future<int> eliminar(int id) async {
     final db = await _open();
-    return db.delete('registros', where: 'id = ?', whereArgs: [id]);
+    final filas = await db.query('registros', columns: ['vista_ruta'], where: 'id = ?', whereArgs: [id]);
+    final ruta = filas.isEmpty ? null : filas.first['vista_ruta'] as String?;
+    final borradas = await db.delete('registros', where: 'id = ?', whereArgs: [id]);
+    if (ruta != null) {
+      try {
+        await File(ruta).delete();
+      } on FileSystemException {
+        // Ya no estaba: no hay nada que borrar.
+      }
+    }
+    return borradas;
   }
 
   /// Nunca lanza: si la base no está disponible (p. ej. en tests), devuelve

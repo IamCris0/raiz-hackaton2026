@@ -36,13 +36,19 @@ class _ResultadoRiesgoScreenState extends State<ResultadoRiesgoScreen> {
   Future<void> _guardar() async {
     setState(() => _guardando = true);
     try {
-      await AppDatabase.guardar(RegistroEstudiante(
-        nombreEstudiante: widget.nombreEstudiante,
-        grado: widget.grado,
-        nivel: widget.resultado.nivel,
-        puntaje: widget.resultado.puntaje,
-        fecha: widget.resultado.fecha,
-      ));
+      final r = widget.resultado;
+      await AppDatabase.guardar(
+        RegistroEstudiante(
+          nombreEstudiante: widget.nombreEstudiante,
+          grado: widget.grado,
+          nivel: r.nivel,
+          puntaje: r.puntaje,
+          fecha: r.fecha,
+          senales: r.senales,
+          observaciones: r.observaciones,
+        ),
+        vista: r.vista,
+      );
       if (!mounted) return;
       setState(() => _guardado = true);
       ScaffoldMessenger.of(context).showSnackBar(
