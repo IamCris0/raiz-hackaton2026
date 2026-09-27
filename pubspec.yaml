@@ -20,7 +20,7 @@ dependencies:
   # Módulo 2 — foto de la escritura + análisis de imagen
   image_picker: ^1.1.2
   image: ^4.2.0
-  # tflite_flutter se agrega cuando haya un modelo entrenado
+  tflite_flutter: ^0.12.1        # clasificador de letras en espejo (on-device)
 
   # Módulo 3 — historial local
   sqflite: ^2.4.1
@@ -43,3 +43,4 @@ flutter:
   assets:
     - assets/images/
     - assets/models/
+    - assets/diccionario/
