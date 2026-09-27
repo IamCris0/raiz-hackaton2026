@@ -31,6 +31,7 @@ dependencies:
   # Utilidades
   connectivity_plus: ^7.3.1
   intl: ^0.19.0
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:

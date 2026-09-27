@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/reporte.dart';
 import '../../../shared/widgets/raiz_widgets.dart';
 import '../../modulo3_dashboard/db/app_database.dart';
 import '../../modulo3_dashboard/models/registro_estudiante.dart';
@@ -62,6 +63,24 @@ class _ResultadoRiesgoScreenState extends State<ResultadoRiesgoScreen> {
     }
   }
 
+  Future<void> _compartir() async {
+    final r = widget.resultado;
+    if (!await confirmarCompartir(context)) return;
+    await compartirReporte(
+      nombre: widget.nombreEstudiante,
+      vista: r.vista,
+      texto: textoReporte(
+        nombre: widget.nombreEstudiante,
+        grado: widget.grado,
+        fecha: r.fecha,
+        nivel: r.nivel,
+        puntaje: r.puntaje,
+        senales: r.senales,
+        observaciones: r.observaciones,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final r = widget.resultado;
@@ -69,7 +88,16 @@ class _ResultadoRiesgoScreenState extends State<ResultadoRiesgoScreen> {
     final t = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Resultado')),
+      appBar: AppBar(
+        title: const Text('Resultado'),
+        actions: [
+          IconButton(
+            tooltip: 'Compartir reporte',
+            icon: const Icon(Icons.share_rounded),
+            onPressed: _compartir,
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
         children: [

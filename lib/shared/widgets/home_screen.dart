@@ -443,8 +443,8 @@ class _NotaEtica extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Los datos de los estudiantes nunca salen de este celular. '
-            'Raíz emite alertas de riesgo, no diagnósticos clínicos.',
+            'Los datos de los estudiantes se quedan en este celular: solo salen '
+            'si tú compartes un reporte. Raíz emite alertas de riesgo, no diagnósticos clínicos.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
