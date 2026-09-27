@@ -62,6 +62,14 @@ void main() {
     expect(irregular.senales.join(), contains('renglón'));
   });
 
+  test('los rasgos sin peso en el índice van a observaciones, no a señales', () {
+    const m = MedidasEscritura(renglones: 5, trazos: 100, tamano: 0.9, espaciado: 0.2, lineaBase: 0.1);
+    final r = interpretar(m);
+    expect(r.nivel, NivelRiesgo.bajo);
+    expect(r.senales.join(), isNot(contains('tamaño')));
+    expect(r.observaciones.join(), contains('tamaño'));
+  });
+
   test('una foto inclinada de escritura regular no genera alerta', () {
     final hoja = _hoja(irregular: false);
     final fondo = img.ColorRgb8(248, 248, 244);

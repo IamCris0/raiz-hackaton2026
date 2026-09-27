@@ -73,26 +73,51 @@ RiesgoResultado interpretar(MedidasEscritura m, {Uint8List? vista}) {
           ? NivelRiesgo.medio
           : NivelRiesgo.alto;
 
-  final senales = <String>[
-    if (tamano >= 0.6)
-      'El tamaño de las letras cambia mucho, incluso dentro de una misma línea.'
-    else if (tamano >= 0.3)
-      'El tamaño de las letras es algo irregular.',
-    if (espaciado >= 0.6)
-      'El espacio entre palabras es muy desigual: algunas quedan pegadas y otras muy separadas.'
-    else if (espaciado >= 0.3)
-      'El espacio entre palabras varía más de lo esperado.',
-    if (lineaBase >= 0.6)
-      'Las letras suben y bajan: la escritura no sigue la línea del renglón.'
-    else if (lineaBase >= 0.3)
-      'Algunas letras se salen un poco de la línea del renglón.',
+  String? frase(double valor, String fuerte, String leve) =>
+      valor >= 0.6 ? fuerte : (valor >= 0.3 ? leve : null);
+
+  final indicadores = [
+    (
+      peso: _pesos.tamano,
+      nombre: 'tamaño',
+      frase: frase(tamano, 'El tamaño de las letras cambia mucho, incluso dentro de una misma línea.',
+          'El tamaño de las letras es algo irregular.'),
+    ),
+    (
+      peso: _pesos.espaciado,
+      nombre: 'espaciado',
+      frase: frase(espaciado, 'El espacio entre palabras es muy desigual: algunas quedan pegadas y otras muy separadas.',
+          'El espacio entre palabras varía más de lo esperado.'),
+    ),
+    (
+      peso: _pesos.lineaBase,
+      nombre: 'alineación',
+      frase: frase(lineaBase, 'Las letras suben y bajan: la escritura no sigue la línea del renglón.',
+          'Algunas letras se salen un poco de la línea del renglón.'),
+    ),
   ];
+
+  // Solo son "señales" los rasgos que mueven el índice. Los que la
+  // calibración dejó sin peso se muestran aparte, para que el docente no
+  // vea una señal fuerte junto a un riesgo bajo sin entender por qué.
+  final cuentan = indicadores.where((i) => i.peso > 0);
+  final senales = [for (final i in cuentan) if (i.frase != null) i.frase!];
   if (senales.isEmpty) {
-    senales.add('El tamaño, el espaciado y la alineación de la escritura se ven regulares.');
-  }
-  if (m.renglones < 3) {
-    senales.add('Se analizaron solo ${m.renglones} renglones: con una muestra más larga el resultado es más confiable.');
+    final nombres = cuentan.map((i) => i.nombre).toList();
+    final lista = nombres.length > 1
+        ? '${nombres.sublist(0, nombres.length - 1).join(', ')} y ${nombres.last}'
+        : nombres.join();
+    senales.add('${lista[0].toUpperCase()}${lista.substring(1)} de la escritura se ven regulares.');
   }
 
-  return RiesgoResultado(nivel: nivel, puntaje: puntaje, senales: senales, vista: vista);
+  final observaciones = [
+    for (final i in indicadores.where((i) => i.peso == 0))
+      if (i.frase != null) i.frase!,
+  ];
+  if (m.renglones < 3) {
+    observaciones.add('Se analizaron solo ${m.renglones} renglones: con una muestra más larga el resultado es más confiable.');
+  }
+
+  return RiesgoResultado(
+      nivel: nivel, puntaje: puntaje, senales: senales, observaciones: observaciones, vista: vista);
 }

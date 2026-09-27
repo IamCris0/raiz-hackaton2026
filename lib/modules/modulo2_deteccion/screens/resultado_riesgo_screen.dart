@@ -118,6 +118,34 @@ class _ResultadoRiesgoScreenState extends State<ResultadoRiesgoScreen> {
           ),
           const SizedBox(height: 22),
 
+          if (r.observaciones.isNotEmpty) ...[
+            const TituloSeccion('Observaciones'),
+            RaizCard(
+              color: AppTheme.borde.withValues(alpha: 0.35),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final o in r.observaciones)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.info_outline_rounded, size: 18, color: AppTheme.tintaSuave),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(o, style: t.bodyLarge)),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                  Text('Se ven en la escritura, pero no cambian el índice de riesgo.', style: t.bodySmall),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+          ],
+
           const TituloSeccion('¿Qué hacer ahora?'),
           RaizCard(
             child: Column(
