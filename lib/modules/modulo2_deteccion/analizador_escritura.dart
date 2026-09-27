@@ -64,11 +64,17 @@ class AnalizadorEscritura {
   static const _minRenglones = 2;
   static const _minTrazos = 20;
 
-  static MedidasEscritura medir(img.Image original) {
+  /// [minRenglones] y [minTrazos] solo se bajan para calibrar con datasets
+  /// de un renglón (ver tool/calibrar_mendeley.dart).
+  static MedidasEscritura medir(
+    img.Image original, {
+    int minRenglones = _minRenglones,
+    int minTrazos = _minTrazos,
+  }) {
     final renglones = _bloquePrincipal(_procesar(original).renglones);
 
     final totalTrazos = renglones.fold<int>(0, (s, r) => s + r.length);
-    if (renglones.length < _minRenglones || totalTrazos < _minTrazos) {
+    if (renglones.length < minRenglones || totalTrazos < minTrazos) {
       throw const EscrituraInsuficienteException(
         'No se encontró suficiente escritura en la foto. Acércate a la hoja, '
         'con buena luz, y asegúrate de que se vean al menos 3 renglones.',
