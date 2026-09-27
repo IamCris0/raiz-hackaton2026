@@ -36,8 +36,9 @@ class DeteccionService {
 /// Calibrado con 242 escritos de niños de primaria del "Potential Dysgraphia
 /// Handwriting Dataset" (Mendeley, ver tool/calibrar_mendeley.dart):
 /// `normal` = mediana de los niños de bajo riesgo, `alto` = su percentil 95.
-/// Pesos y corte elegidos con validación cruzada: acierto 69 %, detecta 50 %
-/// de los casos posibles con 14 % de falsas alarmas. La línea base es la
+/// Pesos y corte elegidos con validación cruzada: acierto ~68 %, detecta
+/// ~56 % de los casos posibles con ~23 % de falsas alarmas (reproducible con
+/// el script; cambia un poco al tocar el analizador). La línea base es la
 /// señal que más separa (AUC 0.76); el tamaño no aportó en ese dataset de un
 /// solo renglón. Falta validar con dictados reales de niños ecuatorianos.
 const _tamano = (normal: 0.227, alto: 0.401);

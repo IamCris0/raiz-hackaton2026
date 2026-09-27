@@ -62,6 +62,43 @@ void main() {
     expect(irregular.senales.join(), contains('renglón'));
   });
 
+  test('una foto inclinada de escritura regular no genera alerta', () {
+    final hoja = _hoja(irregular: false);
+    final fondo = img.ColorRgb8(248, 248, 244);
+    for (final grados in [-6.0, 4.0]) {
+      final girada = img.copyRotate(hoja.convert(numChannels: 4, alpha: 255), angle: grados);
+      final foto = img.compositeImage(img.Image(width: girada.width, height: girada.height)..clear(fondo), girada);
+
+      expect(AnalizadorEscritura.anguloInclinacion(foto).abs(), closeTo(grados.abs(), 1.0));
+      expect(interpretar(AnalizadorEscritura.medir(foto)).nivel, NivelRiesgo.bajo, reason: 'girada $grados°');
+    }
+  });
+
+  test('letras que suben y bajan sobre renglones rectos dan riesgo alto', () {
+    final hoja = _hoja(irregular: false);
+    final ondulada = hoja.clone();
+    for (var y = 0; y < hoja.height; y++) {
+      for (var x = 0; x < hoja.width; x++) {
+        final p = hoja.getPixel(x, (y + 12 * sin(2 * pi * x / 110)).round().clamp(0, hoja.height - 1));
+        final esTinta = p.r < 100;
+        final original = hoja.getPixel(x, y);
+        ondulada.setPixel(x, y, esTinta ? p : (original.r < 100 ? img.ColorRgb8(248, 248, 244) : original));
+      }
+    }
+    final r = interpretar(AnalizadorEscritura.medir(ondulada));
+    expect(r.nivel, NivelRiesgo.alto);
+    expect(r.senales.join(), contains('suben y bajan'));
+  });
+
+  test('renglones de cuaderno sin escritura no son una evaluación', () {
+    final vacia = img.Image(width: 1000, height: 800);
+    img.fill(vacia, color: img.ColorRgb8(248, 248, 244));
+    for (var y = 60; y < 800; y += 55) {
+      img.drawLine(vacia, x1: 0, y1: y, x2: 999, y2: y, color: img.ColorRgb8(170, 190, 215));
+    }
+    expect(() => AnalizadorEscritura.medir(vacia), throwsA(isA<EscrituraInsuficienteException>()));
+  });
+
   test('una hoja sin escritura avisa en vez de inventar un resultado', () {
     final vacia = img.Image(width: 800, height: 1000);
     img.fill(vacia, color: img.ColorRgb8(250, 250, 250));

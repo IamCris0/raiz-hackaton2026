@@ -58,8 +58,8 @@ void main(List<String> args) {
   // (deteccion_service.dart). Se copia aquí porque ese archivo usa Flutter.
   double escalar(double v, double normal, double alto) => ((v - normal) / (alto - normal)).clamp(0.0, 1.0);
   double puntajeApp(MedidasEscritura m) =>
-      0.4 * escalar(m.tamano, 0.32, 0.60) + 0.3 * escalar(m.espaciado, 0.40, 0.90) + 0.3 * escalar(m.lineaBase, 0.18, 0.50);
-  _reportarPuntaje('Puntaje de la app (umbrales actuales)', filas, puntajeApp, corteApp: 0.35);
+      0.0 * escalar(m.tamano, 0.227, 0.401) + 0.1 * escalar(m.espaciado, 0.258, 0.622) + 0.9 * escalar(m.lineaBase, 0.120, 0.221);
+  _reportarPuntaje('Puntaje de la app (umbrales actuales)', filas, puntajeApp, corteApp: 0.25);
 
   _validacionCruzada(filas);
 
