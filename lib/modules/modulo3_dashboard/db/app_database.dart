@@ -50,7 +50,8 @@ class AppDatabase {
   }
 
   /// La imagen analizada se guarda como archivo en la carpeta privada de la
-  /// app (no en SQLite, para que la base no crezca) y nunca sale del celular.
+  /// app (no en SQLite, para que la base no crezca). Solo sale del celular
+  /// si el docente comparte un reporte.
   static Future<int> guardar(RegistroEstudiante registro, {Uint8List? vista}) async {
     final db = await _open();
     String? ruta;
