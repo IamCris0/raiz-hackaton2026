@@ -13,6 +13,11 @@ class RiesgoResultado {
   final NivelRiesgo nivel;
   final double puntaje; // 0.0 - 1.0, entre más alto más señales de riesgo
   final List<String> senales;
+
+  /// Rasgos que se ven en la escritura pero no cambian el índice (por
+  /// ejemplo, uno que la calibración dejó sin peso) o avisos sobre la
+  /// muestra. Se muestran aparte de [senales].
+  final List<String> observaciones;
   final DateTime fecha;
 
   /// JPEG de la zona escrita con la línea de cada renglón y las letras que
@@ -23,6 +28,7 @@ class RiesgoResultado {
     required this.nivel,
     required this.puntaje,
     required this.senales,
+    this.observaciones = const [],
     this.vista,
     DateTime? fecha,
   }) : fecha = fecha ?? DateTime.now();
