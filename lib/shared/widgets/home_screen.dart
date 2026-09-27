@@ -53,14 +53,20 @@ class _HomeScreenState extends State<HomeScreen> {
           final r = snap.data ?? ResumenHistorial.vacio;
           return CustomScrollView(
             slivers: [
-              SliverToBoxAdapter(child: _Encabezado(saludo: _saludo)),
+              // Encabezado y estadísticas en el mismo sliver: el viewport pinta
+              // los slivers en orden inverso, y la tarjeta quedaba bajo el verde.
               SliverToBoxAdapter(
-                child: Transform.translate(
-                  offset: const Offset(0, -38),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _FilaEstadisticas(resumen: r),
-                  ),
+                child: Column(
+                  children: [
+                    _Encabezado(saludo: _saludo),
+                    Transform.translate(
+                      offset: const Offset(0, -38),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _FilaEstadisticas(resumen: r),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               SliverPadding(
