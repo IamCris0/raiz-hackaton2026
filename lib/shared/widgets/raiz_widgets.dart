@@ -21,7 +21,7 @@ extension NivelRiesgoUI on NivelRiesgo {
       };
 
   String get resumen => switch (this) {
-        NivelRiesgo.bajo => 'No se observan señales relevantes en esta muestra.',
+        NivelRiesgo.bajo => 'Pocas señales en esta muestra: por ahora no hace falta intervenir.',
         NivelRiesgo.medio => 'Hay señales que conviene observar en las próximas semanas.',
         NivelRiesgo.alto => 'Hay señales importantes: se recomienda derivar a un especialista.',
       };
