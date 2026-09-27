@@ -101,7 +101,7 @@ class _CapturaEscrituraScreenState extends State<CapturaEscrituraScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _grado,
+                      initialValue: _grado,
                       decoration: const InputDecoration(
                         labelText: 'Grado (opcional)',
                         prefixIcon: Icon(Icons.school_outlined),
