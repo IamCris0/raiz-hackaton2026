@@ -53,10 +53,11 @@ RiesgoResultado evaluar(Uint8List bytes) {
   if (imagen == null) {
     throw const EscrituraInsuficienteException('No se pudo leer la imagen capturada.');
   }
-  return interpretar(AnalizadorEscritura.medir(imagen));
+  final analisis = AnalizadorEscritura.analizar(imagen);
+  return interpretar(analisis.medidas, vista: img.encodeJpg(analisis.vista, quality: 85));
 }
 
-RiesgoResultado interpretar(MedidasEscritura m) {
+RiesgoResultado interpretar(MedidasEscritura m, {Uint8List? vista}) {
   double escalar(double valor, ({double normal, double alto}) r) =>
       ((valor - r.normal) / (r.alto - r.normal)).clamp(0.0, 1.0);
 
@@ -93,5 +94,5 @@ RiesgoResultado interpretar(MedidasEscritura m) {
     senales.add('Se analizaron solo ${m.renglones} renglones: con una muestra más larga el resultado es más confiable.');
   }
 
-  return RiesgoResultado(nivel: nivel, puntaje: puntaje, senales: senales);
+  return RiesgoResultado(nivel: nivel, puntaje: puntaje, senales: senales, vista: vista);
 }

@@ -70,9 +70,21 @@ class AnalizadorEscritura {
     img.Image original, {
     int minRenglones = _minRenglones,
     int minTrazos = _minTrazos,
-  }) {
-    final renglones = _bloquePrincipal(_procesar(original).renglones);
+  }) =>
+      _medidas(_bloquePrincipal(_procesar(original).renglones), minRenglones, minTrazos);
 
+  /// Medidas y, en la misma pasada, la imagen que se le muestra al docente
+  /// para que vea qué analizó Raíz (ver [_vistaParaDocente]).
+  static ({MedidasEscritura medidas, img.Image vista}) analizar(img.Image original) {
+    final p = _procesar(original);
+    final renglones = _bloquePrincipal(p.renglones);
+    return (
+      medidas: _medidas(renglones, _minRenglones, _minTrazos),
+      vista: _vistaParaDocente(p.imagen, renglones),
+    );
+  }
+
+  static MedidasEscritura _medidas(List<List<_Trazo>> renglones, int minRenglones, int minTrazos) {
     final totalTrazos = renglones.fold<int>(0, (s, r) => s + r.length);
     if (renglones.length < minRenglones || totalTrazos < minTrazos) {
       throw const EscrituraInsuficienteException(
@@ -109,6 +121,71 @@ class AnalizadorEscritura {
       }
     }
     return salida;
+  }
+
+  /// La zona escrita, con la línea base de cada renglón (azul) y cada letra
+  /// en verde si la sigue o en rojo si se sale claramente. Las letras con
+  /// "cola" (p, g, j, q) bajan del renglón por naturaleza, así que solo se
+  /// marca lo que baja mucho más que eso o lo que flota por encima.
+  static img.Image _vistaParaDocente(img.Image imagen, List<List<_Trazo>> renglones) {
+    final salida = imagen.clone();
+    final azul = img.ColorRgb8(30, 110, 220);
+    final verde = img.ColorRgb8(40, 160, 90);
+    final rojo = img.ColorRgb8(220, 40, 40);
+
+    var x0 = salida.width, y0 = salida.height, x1 = 0, y1 = 0;
+    var altoTipico = 0.0;
+    for (final r in renglones) {
+      final (a, b, alto) = _lineaBaseDe(r);
+      altoTipico = max(altoTipico, alto);
+      final izq = r.map((t) => t.minX).reduce(min);
+      final der = r.map((t) => t.maxX).reduce(max);
+      img.drawLine(salida,
+          x1: izq, y1: (a + b * izq).round(), x2: der, y2: (a + b * der).round(), color: azul, thickness: 2);
+      for (final t in r) {
+        // Tildes, puntos y trozos sueltos no son letras: marcarlos en rojo
+        // haría creer al docente que hay errores donde no los hay.
+        // Figuras mucho más grandes que una letra suelen ser dibujos.
+        if (t.alto < alto * 0.5 || t.alto > alto * 1.8) continue;
+        final base = a + b * t.cx;
+        // Flota: su parte de abajo queda muy por encima del renglón.
+        // Se hunde: toda la letra (también su parte de arriba) queda bajo el
+        // renglón; así una p o una g, que solo bajan con la cola, no cuentan.
+        final seSale = t.maxY < base - alto * 0.35 || t.minY > base - alto * 0.25;
+        img.drawRect(salida,
+            x1: t.minX, y1: t.minY, x2: t.maxX, y2: t.maxY, color: seSale ? rojo : verde, thickness: seSale ? 3 : 2);
+      }
+      x0 = min(x0, izq);
+      x1 = max(x1, der);
+      y0 = min(y0, r.map((t) => t.minY).reduce(min));
+      y1 = max(y1, r.map((t) => t.maxY).reduce(max));
+    }
+    if (renglones.isEmpty) return salida;
+
+    final margen = (altoTipico * 2).round();
+    final cx0 = max(0, x0 - margen), cy0 = max(0, y0 - margen);
+    return img.copyCrop(salida,
+        x: cx0,
+        y: cy0,
+        width: min(salida.width, x1 + margen) - cx0,
+        height: min(salida.height, y1 + margen) - cy0);
+  }
+
+  /// Recta de la base del renglón (robusta a letras con cola) y la altura
+  /// típica de sus letras: `y = a + b·x`.
+  static (double, double, double) _lineaBaseDe(List<_Trazo> r) {
+    final alto = _mediana(r.map((t) => t.alto.toDouble()).toList());
+    final xs = r.map((t) => t.cx).toList();
+    final ys = r.map((t) => t.maxY.toDouble()).toList();
+
+    var usar = List<bool>.filled(r.length, true);
+    var (a, b) = _recta(xs, ys, usar);
+    for (var iter = 0; iter < 2; iter++) {
+      usar = [for (var i = 0; i < r.length; i++) (ys[i] - (a + b * xs[i])).abs() < alto * 0.4];
+      if (usar.where((u) => u).length < 3) break;
+      (a, b) = _recta(xs, ys, usar);
+    }
+    return (a, b, alto);
   }
 
   /// Renglones con aspecto de texto (todos, no solo el bloque principal).
@@ -555,19 +632,8 @@ class AnalizadorEscritura {
   static double _medirLineaBase(List<List<_Trazo>> renglones) {
     final desviaciones = <double>[];
     for (final r in renglones) {
-      final alto = _mediana(r.map((t) => t.alto.toDouble()).toList());
-      final xs = r.map((t) => t.cx).toList();
-      final ys = r.map((t) => t.maxY.toDouble()).toList();
-
-      var usar = List<bool>.filled(r.length, true);
-      var (a, b) = _recta(xs, ys, usar);
-      for (var iter = 0; iter < 2; iter++) {
-        usar = [for (var i = 0; i < r.length; i++) (ys[i] - (a + b * xs[i])).abs() < alto * 0.4];
-        if (usar.where((u) => u).length < 3) break;
-        (a, b) = _recta(xs, ys, usar);
-      }
-
-      final residuos = [for (var i = 0; i < r.length; i++) (ys[i] - (a + b * xs[i])).abs() / alto];
+      final (a, b, alto) = _lineaBaseDe(r);
+      final residuos = [for (final t in r) (t.maxY - (a + b * t.cx)).abs() / alto];
       desviaciones.add(_mediana(residuos));
     }
     return desviaciones.reduce((a, b) => a + b) / desviaciones.length;
